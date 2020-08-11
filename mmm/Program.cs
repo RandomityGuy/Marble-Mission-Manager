@@ -42,8 +42,10 @@ namespace mmm
                 case "help":
                     Console.WriteLine("Marble Mission Manager v1.0");
                     Console.WriteLine("Common commands:");
-                    Console.WriteLine("  update");
-                    Console.WriteLine("  install <mission>");
+                    Console.WriteLine("  update: update the missionlist");
+                    Console.WriteLine("  install <mission>: install <mission> to %appdata%/PlatinumQuest");
+                    Console.WriteLine("  search <mission>: search <mission> in the package");
+                    Console.WriteLine("  clean: clean cache");
                     break;
 
                 case "update":
