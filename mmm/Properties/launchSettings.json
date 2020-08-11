@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "mmm": {
+      "commandName": "Project",
+      "commandLineArgs": "install AT.mis"
+    }
+  }
+}
