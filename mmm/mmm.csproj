@@ -9,4 +9,10 @@
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Missioneer">
+      <HintPath>..\..\Missioneer\Missioneer\bin\Debug\Missioneer.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

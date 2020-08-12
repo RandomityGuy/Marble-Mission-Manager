@@ -5,6 +5,9 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using System.Linq;
 using System.IO.Compression;
+using Missioneer;
+using Missioneer.Utils;
+using Path = System.IO.Path;
 
 namespace mmm
 {
@@ -35,7 +38,7 @@ namespace mmm
 
             missionList = JsonConvert.DeserializeObject<List<Mission>>(missionlistdata);
 
-            var type = args.Length > 1 ? args[0] : "help";
+            var type = args.Length >= 1 ? args[0] : "help";
 
             switch (type)
             {
@@ -67,6 +70,14 @@ namespace mmm
 
                 case "clean":
                     Clean();
+                    break;
+
+                default:
+                    if (File.Exists(args[0]))
+                    {
+                        Console.WriteLine("Installing mission");
+                        InstallZip(args[0]);
+                    }
                     break;
             }
         }
@@ -162,7 +173,114 @@ namespace mmm
             {
                 if (Path.GetExtension(file) == "zip")
                     File.Delete(file);
+                if (File.GetAttributes(file).HasFlag(FileAttributes.Directory))
+                    File.Delete(file);
             }
         }
+
+        static void InstallZip(string zippath)
+        {
+            var zip = ZipFile.OpenRead(zippath);
+            string path = DataFolder + "\\" + Path.GetFileNameWithoutExtension(zippath);
+            Directory.CreateDirectory(path);
+            zip.ExtractToDirectory(path,true);
+
+            var misfiles = GetRecursiveFileNamesOfExtension(path, ".mis");
+            var diffiles = GetRecursiveFileNamesOfExtension(path, ".dif");
+
+            foreach (var mis in misfiles)
+            {
+                Console.WriteLine($"Installing {Path.GetFileName(mis)}");
+                InstallMis(mis, diffiles);
+            }
+
+        }
+
+        static void InstallMis(string mispath,List<string> difs)
+        {
+            var importer = new Importer();
+            var MissionGroup = importer.Import(mispath);
+            InstallDifs(MissionGroup, difs);
+
+            var artist = MissionGroup.Where(a => a.objname == "MissionInfo").First().dynamicFields.GetValueOrDefault("artist", "Unspecified Artist");
+            Directory.CreateDirectory(PQPath + "\\platinum\\data\\missions\\custom\\" + artist);
+            File.Copy(mispath, PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(mispath));
+            if (File.Exists(Path.ChangeExtension(mispath,"png")))
+                File.Copy(Path.ChangeExtension(mispath, "png"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath,"png")));
+            if (File.Exists(Path.ChangeExtension(mispath, "prev.png")))
+                File.Copy(Path.ChangeExtension(mispath, "prev.png"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath, "prev.png")));
+            if (File.Exists(Path.ChangeExtension(mispath, "jpg")))
+                File.Copy(Path.ChangeExtension(mispath, "jpg"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath, "jpg")));
+        }
+
+        static void InstallDifs(SimGroup group,List<string> difs)
+        {
+            foreach (var item in group)
+            {
+                if (item.GetType() == typeof(SimGroup))
+                {
+                    InstallDifs(item as SimGroup, difs);
+                }
+                if (item.GetType() == typeof(InteriorInstance))
+                {
+                    var interior = item as InteriorInstance;
+                    var path = ParseInteriorPath(interior.interiorFile);
+                    if (!File.Exists(path))
+                    {
+                        var interiorfilename = Path.GetFileName(path);
+                        if (difs.Select(a => Path.GetFileName(a)).Contains(interiorfilename))
+                        {
+                            var dif = difs.Where(a => Path.GetFileName(a) == interiorfilename).First();
+                            File.Copy(dif, path);
+                        }
+                        else
+                            Console.WriteLine($"ERROR: Interior {path} not found");
+                    }
+                }
+                if (item.GetType() == typeof(PathedInterior))
+                {
+                    var interior = item as PathedInterior;
+                    var path = ParseInteriorPath(interior.interiorResource);
+                    if (!File.Exists(path))
+                    {
+                        var interiorfilename = Path.GetFileName(path);
+                        if (difs.Select(a => Path.GetFileName(a)).Contains(interiorfilename))
+                        {
+                            var dif = difs.Where(a => Path.GetFileName(a) == interiorfilename).First();
+                            File.Copy(dif, path);
+                        }
+                        else
+                            Console.WriteLine($"ERROR: Interior {path} not found");
+                    }
+                }
+            }
+        }
+
+        static string ParseInteriorPath(string path)
+        {
+            path = path.Replace("/", "\\");
+            path = path.Replace("~", "platinum");
+            if (path.Contains("$usermods"))
+            {
+                path = "platinum" + path.Split(" @ ")[1].Trim('\"');
+
+            }
+            return Path.Combine(PQPath, path);
+        }
+
+        static List<string> GetRecursiveFileNamesOfExtension(string path,string extension)
+        {
+            var ret = new List<string>();
+            foreach (var file in Directory.GetFiles(path))
+            {
+                if (Path.GetExtension(file) == extension)
+                    ret.Add(file);
+            }
+            foreach (var dir in Directory.GetDirectories(path))
+                ret.AddRange(GetRecursiveFileNamesOfExtension(dir, extension));
+            return ret;
+        }
+
+
     }
 }
