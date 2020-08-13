@@ -2,7 +2,7 @@
   "profiles": {
     "mmm": {
       "commandName": "Project",
-      "commandLineArgs": "\"AimNTeleport.zip\""
+      "commandLineArgs": "list 16"
     }
   }
 }

@@ -44,11 +44,12 @@ namespace mmm
             {
                 case "help":
                     Console.WriteLine("Marble Mission Manager v1.0");
-                    Console.WriteLine("Common commands:");
+                    Console.WriteLine("Commands:");
                     Console.WriteLine("  update: update the missionlist");
                     Console.WriteLine("  install <mission>: install <mission> to %appdata%/PlatinumQuest");
-                    Console.WriteLine("  search <mission>: search <mission> in the package");
+                    Console.WriteLine("  search <mission>: search for <mission> in the missionlist");
                     Console.WriteLine("  clean: clean cache");
+                    Console.WriteLine("  list: list installed missions");
                     break;
 
                 case "update":
@@ -70,6 +71,11 @@ namespace mmm
 
                 case "clean":
                     Clean();
+                    break;
+
+                case "list":
+                    Console.WriteLine("Listing installed missions:\n");
+                    List((args.Length > 1) ? int.Parse(args[1]) : 1);
                     break;
 
                 default:
@@ -178,6 +184,44 @@ namespace mmm
             }
         }
 
+        static void List(int page)
+        {
+            var missionlist = GetRecursiveFileNamesOfExtension(PQPath + "\\platinum\\data\\missions\\custom", ".mis");
+            var lvlcount = missionlist.Count;
+            var pagecount = Math.DivRem(missionlist.Count, 20, out int rem);
+            if (rem != 0)
+                pagecount++;
+            if (page != pagecount && page >= 0 && page < pagecount)
+            {
+                missionlist = missionlist.GetRange(20 * (page - 1), 20);
+            }
+            else if (page == pagecount)
+            {
+                missionlist = missionlist.GetRange(20 * (page - 1),rem);
+            }
+            else
+                missionlist = missionlist.GetRange(0, Math.Min(20, missionlist.Count));
+
+            for (int i = 0; i < missionlist.Count; i++)
+            {
+                string mis = missionlist[i];
+                try
+                {
+                    var importer = new Importer();
+                    var MissionGroup = importer.Import(mis);
+                    var missioninfo = MissionGroup.First(a => a.objname == "MissionInfo");
+                    var artist = missioninfo.dynamicFields.GetValueOrDefault("artist", "Unspecified Artist");
+                    var name = missioninfo["name"];
+                    Console.WriteLine($"{20 * (page - 1) + i + 1}.{name} by {artist} [{Path.GetRelativePath(PQPath + "\\platinum\\data\\missions\\custom", mis)}]");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"{20 * (page - 1) + i + 1}. [{Path.GetRelativePath(PQPath + "\\platinum\\data\\missions\\custom", mis)}]");
+                }
+            }
+            Console.WriteLine($"\n{lvlcount} missions installed. Page {page}/{pagecount}");
+        }
+
         static void InstallZip(string zippath)
         {
             var zip = ZipFile.OpenRead(zippath);
@@ -204,13 +248,14 @@ namespace mmm
 
             var artist = MissionGroup.Where(a => a.objname == "MissionInfo").First().dynamicFields.GetValueOrDefault("artist", "Unspecified Artist");
             Directory.CreateDirectory(PQPath + "\\platinum\\data\\missions\\custom\\" + artist);
-            File.Copy(mispath, PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(mispath));
+            if (!File.Exists(PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(mispath)))
+                File.Copy(mispath, PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(mispath));
             if (File.Exists(Path.ChangeExtension(mispath,"png")))
-                File.Copy(Path.ChangeExtension(mispath, "png"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath,"png")));
+                File.Copy(Path.ChangeExtension(mispath, "png"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath,"png")),true);
             if (File.Exists(Path.ChangeExtension(mispath, "prev.png")))
-                File.Copy(Path.ChangeExtension(mispath, "prev.png"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath, "prev.png")));
+                File.Copy(Path.ChangeExtension(mispath, "prev.png"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath, "prev.png")),true);
             if (File.Exists(Path.ChangeExtension(mispath, "jpg")))
-                File.Copy(Path.ChangeExtension(mispath, "jpg"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath, "jpg")));
+                File.Copy(Path.ChangeExtension(mispath, "jpg"), PQPath + "\\platinum\\data\\missions\\custom\\" + artist + "\\" + Path.GetFileName(Path.ChangeExtension(mispath, "jpg")),true);
         }
 
         static void InstallDifs(SimGroup group,List<string> difs)
